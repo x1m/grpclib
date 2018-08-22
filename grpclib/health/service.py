@@ -8,10 +8,13 @@ from .v1.health_grpc import HealthBase
 
 
 def _status(checks):
-    if all(check.__status__() for check in checks):
-        return HealthCheckResponse.ServingStatus.SERVING
+    statuses = {check.__status__() for check in checks}
+    if statuses == {None}:
+        return HealthCheckResponse.UNKNOWN
+    elif statuses == {True}:
+        return HealthCheckResponse.SERVING
     else:
-        return HealthCheckResponse.ServingStatus.NOT_SERVING
+        return HealthCheckResponse.NOT_SERVING
 
 
 class Health(HealthBase):
@@ -32,11 +35,11 @@ class Health(HealthBase):
             await stream.send_trailing_metadata(status=Status.NOT_FOUND)
         elif len(checks) == 0:
             await stream.send_message(HealthCheckResponse(
-                status=HealthCheckResponse.ServingStatus.SERVING,
+                status=HealthCheckResponse.SERVING,
             ))
         else:
             for check in checks:
-                check.__check__()
+                await check.__check__()
             await stream.send_message(HealthCheckResponse(
                 status=_status(checks),
             ))
@@ -46,13 +49,13 @@ class Health(HealthBase):
         checks = self._checks.get(request.service)
         if checks is None:
             await stream.send_message(HealthCheckResponse(
-                status=HealthCheckResponse.ServingStatus.SERVICE_UNKNOWN,
+                status=HealthCheckResponse.SERVICE_UNKNOWN,
             ))
             while True:
                 await asyncio.sleep(3600)
         elif len(checks) == 0:
             await stream.send_message(HealthCheckResponse(
-                status=HealthCheckResponse.ServingStatus.SERVING,
+                status=HealthCheckResponse.SERVING,
             ))
             while True:
                 await asyncio.sleep(3600)
