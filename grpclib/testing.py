@@ -13,7 +13,8 @@ class _InMemoryTransport(Transport):
         self._protocol = protocol
 
     def write(self, data):
-        self._loop.call_soon(self._protocol.data_received, data)
+        if data:
+            self._loop.call_soon(self._protocol.data_received, data)
 
     def is_closing(self):
         return False
